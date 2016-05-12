@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+
+<project name="SFOutbound" default="jar" basedir="..">
+   <property environment="ENV" />
+   <property name="appname" value="SFOutbound" />
+   <property name="sourcedir" value="." />
+   <property name="libdir" value="lib" />
+   <property name="jarfile" value="${appname}.jar" />
+
+   <target name="jar" depends="init,compile">
+      <jar jarfile="${jarfile}"
+           basedir="."
+           manifest="BUILD/manifest.mf"
+           excludes="*.*,**/*.java,**/BUILD/**" />
+   </target>
+
+   <target name="init">
+      <tstamp />
+   </target>
+
+   <target name="compile">
+      <javac srcdir="${sourcedir}" destdir="${sourcedir}" excludes="*.*" debug="on"
+       source="1.7" target="1.7" includeAntRuntime="false">
+         <classpath>
+            <fileset dir="${libdir}">
+               <include name="**/*.jar" />
+            </fileset>
+         </classpath>
+      </javac>
+   </target>
+
+   <target name="clean">
+      <delete>
+         <fileset dir="${sourcedir}" includes="**/*.class" />
+      </delete>
+      <delete file="${jarfile}" />
+   </target>
+
+</project>
