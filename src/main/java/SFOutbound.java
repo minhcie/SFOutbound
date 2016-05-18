@@ -36,7 +36,7 @@ import org.apache.log4j.Logger;
 
 public class SFOutbound {
     private static final Logger log = Logger.getLogger(SFOutbound.class.getName());
-    private static final String USERNAME = "mtran@211sandiego.org";
+    private static final String USERNAME = "mtran@211sandiego.org.dev";
     private static final String PASSWORD = "m1nh@211KsmlvVA4mvtI6YwzKZOLjbKF9";
     private static PartnerConnection connection;
 
@@ -83,17 +83,32 @@ public class SFOutbound {
     		log.info("Username: " + config.getUsername());
     		log.info("SessionId: " + config.getSessionId());
 
+            // Query default owner.
+            String owner = "Brianne Benevento";
+            String ownerId = queryUser(connection, owner);
+            if (ownerId == null) {
+                log.error("Invalid owner name!");
+                System.exit(-1);
+            }
+
             // Query record type id.
             String acctId = queryAccount(connection, "ALL CLIENTS");
-            String contactRecordTypeId = queryRecordType(connection, "Client");
+            String contactRecordTypeId = queryRecordType(connection, "Contact",
+                                                         "Client");
+            String campaignRecordTypeId = queryRecordType(connection, "Campaign",
+                                                          "Call Center");
+            String campaignMemberRecordTypeId = queryRecordType(connection, "CampaignMember",
+                                                                "Client");
 
             // Insert/update campaign.
-            SimpleDateFormat sdf = new SimpleDateFormat("MM-dd-yyyy");
+            SimpleDateFormat sdf = new SimpleDateFormat("MMyyyy");
             ContactInfo ci = data.get(0);
             String campaignName = "Campaign_SF_" + sdf.format(ci.extractDate);
             String campaignId = queryCampaign(connection, campaignName);
             if (campaignId == null) {
-                campaignId = createCampaign(connection, campaignName);
+                campaignId = createCampaign(connection, campaignRecordTypeId,
+                                            campaignMemberRecordTypeId, ownerId,
+                                            campaignName, ci.extractDate);
             }
 
             // Insert/update contacts.
@@ -107,7 +122,8 @@ public class SFOutbound {
                     updateContact(connection, contactId, ci);
                 }
                 else {
-                    contactId = createContact(connection, acctId, contactRecordTypeId, ci);
+                    contactId = createContact(connection, acctId, contactRecordTypeId,
+                                              ownerId, ci);
                 }
 
                 // Insert campaign member.
@@ -271,13 +287,15 @@ public class SFOutbound {
         return data;
     }
 
-    private static String queryRecordType(PartnerConnection conn, String name) {
-    	log.info("Querying for " + name + " record type...");
+    private static String queryRecordType(PartnerConnection conn, String objectName,
+                                          String name) {
+    	log.info("Querying for " + name + " record type from " + objectName + "...");
         String recordTypeId = null;
     	try {
             // Query for record type name.
-    		String sql = "SELECT Id, Name FROM RecordType " +
-                         "WHERE Name = '" + name + "' ";
+    		String sql = "SELECT Id, Name, SobjectType FROM RecordType " +
+                         "WHERE Name = '" + name + "' " +
+                         "  AND SobjectType = '" + objectName + "' ";
     		QueryResult queryResults = conn.query(sql);
     		if (queryResults.getSize() > 0) {
     			for (SObject s: queryResults.getRecords()) {
@@ -297,6 +315,36 @@ public class SFOutbound {
             log.info(name + " record type not found!");
         }
         return recordTypeId;
+    }
+
+    private static String queryUser(PartnerConnection conn, String name) {
+        log.info("Querying user " + name + "...");
+        String userId = null;
+        if (name == null || name.trim().length() <= 0) {
+            return userId;
+        }
+
+        // Parse user first and last name.
+        String[] parts = name.split(" ");
+
+    	try {
+    		StringBuilder sb = new StringBuilder();
+    		sb.append("SELECT Id, FirstName, LastName, Account.Name ");
+    		sb.append("FROM User ");
+    		sb.append("WHERE FirstName = '" + parts[0] + "' ");
+    		sb.append("  AND LastName = '" + parts[1] + "'");
+
+    		QueryResult queryResults = conn.query(sb.toString());
+    		if (queryResults.getSize() > 0) {
+    			for (SObject s: queryResults.getRecords()) {
+                    userId = s.getId();
+    			}
+    		}
+    	}
+    	catch (Exception e) {
+    		e.printStackTrace();
+    	}
+        return userId;
     }
 
     private static String queryAccount(PartnerConnection conn, String name) {
@@ -394,17 +442,23 @@ public class SFOutbound {
         return result;
     }
 
-    private static String createCampaign(PartnerConnection conn, String name) {
-        log.info("Creating new campaign name: " + name);
+    private static String createCampaign(PartnerConnection conn, String campaignRecordTypeId,
+                                         String campaignMemberRecordTypeId, String ownerId,
+                                         String campaignName, Date extractDate) {
+        log.info("Creating new campaign name: " + campaignName);
         String campaignId = null;
     	try {
     	    SObject[] records = new SObject[1];
 
             SObject so = new SObject();
     		so.setType("Campaign");
-    		so.setField("Name", name);
+	        so.setField("RecordTypeId", campaignRecordTypeId);;
+	        so.setField("CampaignMemberRecordTypeId", campaignMemberRecordTypeId);;
+	        so.setField("OwnerId", ownerId);;
+    		so.setField("Name", campaignName);
     		so.setField("IsActive", new Boolean(true));
     		so.setField("Type", "SF Outbound");
+            so.setField("Extracted_Date__c", extractDate);
     		records[0] = so;
 
     		// Create the records in Salesforce.
@@ -467,7 +521,8 @@ public class SFOutbound {
     }
 
     private static String createContact(PartnerConnection conn, String acctId,
-                                        String contactRecordTypeId, ContactInfo ci) {
+                                        String contactRecordTypeId, String ownerId,
+                                        ContactInfo ci) {
         log.info("Creating new contact name: " + ci.firstName + " " + ci.lastName);
         String contactId = null;
     	try {
@@ -476,6 +531,7 @@ public class SFOutbound {
 			SObject so = copyContactInfo(ci);
 	        so.setField("AccountId", acctId);
 	        so.setField("RecordTypeId", contactRecordTypeId);;
+	        so.setField("OwnerId", ownerId);;
             records[0] = so;
 
             // Create the record in Salesforce.
@@ -536,10 +592,10 @@ public class SFOutbound {
 		so.setType("Contact");
         so.setField("FirstName", ci.firstName);
         so.setField("LastName", ci.lastName);
-		so.setField("Home_Street__c", ci.address);
-		so.setField("Home_City__c", ci.city);
-		so.setField("Home_State__c", ci.state);
-		so.setField("Home_Zip__c", ci.zip);
+		so.setField("Mailing_Street__c", ci.address);
+		so.setField("Mailing_City__c", ci.city);
+		so.setField("Mailing_State__c", ci.state);
+		so.setField("Mailing_Zip__c", ci.zip);
         if (ci.phone1 != null) {
             so.setField("Phone_1_Primary__c", ci.phone1);
         }
