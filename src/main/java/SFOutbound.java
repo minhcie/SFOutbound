@@ -36,7 +36,7 @@ import org.apache.log4j.Logger;
 
 public class SFOutbound {
     private static final Logger log = Logger.getLogger(SFOutbound.class.getName());
-    private static final String USERNAME = "mtran@211sandiego.org.dev";
+    private static final String USERNAME = "mtran@211sandiego.org";
     private static final String PASSWORD = "m1nh@211KsmlvVA4mvtI6YwzKZOLjbKF9";
     private static PartnerConnection connection;
 
@@ -101,9 +101,10 @@ public class SFOutbound {
                                                                 "Client");
 
             // Insert/update campaign.
+            Date today = new Date();
             SimpleDateFormat sdf = new SimpleDateFormat("MMyyyy");
             ContactInfo ci = data.get(0);
-            String campaignName = "Campaign_SF_" + sdf.format(ci.extractDate);
+            String campaignName = "Campaign_SF_" + sdf.format(today);
             String campaignId = queryCampaign(connection, campaignName);
             if (campaignId == null) {
                 campaignId = createCampaign(connection, campaignRecordTypeId,
@@ -116,7 +117,8 @@ public class SFOutbound {
                 ci = data.get(i);
 
                 String contactId = null;
-                SObject so = queryContact(connection, ci.firstName, ci.lastName);
+                SObject so = queryContact(connection, acctId, ci.firstName,
+                                          ci.lastName, ci.caseId);
                 if (so != null) {
                     contactId = so.getId();
                     updateContact(connection, contactId, ci);
@@ -205,9 +207,11 @@ public class SFOutbound {
             }
 
             // @debug.
-            if (row.getRowNum() >= 2) {
+            /*
+            if (row.getRowNum() >= 4) {
                 break;
             }
+            */
 
             // Row data.
             boolean hasData = false;
@@ -419,17 +423,18 @@ public class SFOutbound {
         return result;
     }
 
-    private static SObject queryContact(PartnerConnection conn,
-                                        String firstName, String lastName) {
+    private static SObject queryContact(PartnerConnection conn, String acctId,
+                                        String firstName, String lastName, String caseId) {
     	log.info("Querying contact " + firstName + " " + lastName + "...");
         SObject result = null;
         try {
     		StringBuilder sb = new StringBuilder();
-    		sb.append("SELECT Id, FirstName, LastName, AccountId ");
+    		sb.append("SELECT Id, FirstName, LastName, AccountId, Mailing_City__c ");
     		sb.append("FROM Contact ");
-    		sb.append("WHERE AccountId != NULL ");
+    		sb.append("WHERE AccountId = '" + acctId + "' ");
     		sb.append("  AND FirstName = '" + firstName + "' ");
-    		sb.append("  AND LastName = '" + lastName + "'");
+    		sb.append("  AND LastName = '" + lastName + "' ");
+    		sb.append("  AND County_Case_ID__c = '" + caseId + "'");
 
     		QueryResult queryResults = conn.query(sb.toString());
     		if (queryResults.getSize() > 0) {
