@@ -84,7 +84,7 @@ public class SFOutbound {
     		log.info("SessionId: " + config.getSessionId());
 
             // Query default owner.
-            String owner = "Brianne Benevento";
+            String owner = "Karla Samayoa";
             String ownerId = queryUser(connection, owner);
             if (ownerId == null) {
                 log.error("Invalid owner name!");
@@ -228,6 +228,9 @@ public class SFOutbound {
                 }
                 else {
                     cellValue = getCellValue(cell);
+                    if (cellValue.equalsIgnoreCase("null")) {
+                        cellValue = "";
+                    }
                 }
 
                 if (cellValue.length() > 0) {
@@ -478,7 +481,7 @@ public class SFOutbound {
     			else {
     				Error[] errors = saveResults[i].getErrors();
     				for (int j = 0; j< errors.length; j++) {
-    					log.info("ERROR creating record: " + errors[j].getMessage());
+    					log.error(errors[j].getStatusCode() + " - " + errors[j].getMessage());
     				}
     			}
     		}
@@ -514,7 +517,7 @@ public class SFOutbound {
     			else {
     				Error[] errors = saveResults[i].getErrors();
     				for (int j = 0; j< errors.length; j++) {
-    					log.info("ERROR creating record: " + errors[j].getMessage());
+    					log.error(errors[j].getStatusCode() + " - " + errors[j].getMessage());
     				}
     			}
     		}
@@ -551,7 +554,7 @@ public class SFOutbound {
     			else {
     				Error[] errors = saveResults[i].getErrors();
     				for (int j = 0; j< errors.length; j++) {
-    					log.info("ERROR creating record: " + errors[j].getMessage());
+    					log.error(errors[j].getStatusCode() + " - " + errors[j].getMessage());
     				}
     			}
     		}
@@ -582,7 +585,7 @@ public class SFOutbound {
     			else {
     				Error[] errors = saveResults[i].getErrors();
     				for (int j = 0; j < errors.length; j++) {
-    					log.error("Error updating record: " + errors[j].getMessage() + "\n");
+    					log.error(errors[j].getStatusCode() + " - " + errors[j].getMessage());
     				}
     			}
     		}
