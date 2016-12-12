@@ -113,6 +113,8 @@ public class SFOutbound {
             }
 
             // Insert/update contacts.
+            int newContact = 0;
+            int existedContact = 0;
             for (int i = 0; i < data.size(); i++) {
                 ci = data.get(i);
 
@@ -120,10 +122,12 @@ public class SFOutbound {
                 SObject so = queryContact(connection, acctId, ci.firstName,
                                           ci.lastName, ci.caseId);
                 if (so != null) {
+                    existedContact++;
                     contactId = so.getId();
                     updateContact(connection, contactId, ci);
                 }
                 else {
+                    newContact++;
                     contactId = createContact(connection, acctId, contactRecordTypeId,
                                               ownerId, ci);
                 }
@@ -134,6 +138,9 @@ public class SFOutbound {
                     createCampaignMember(connection, campaignId, contactId);
                 }
             }
+
+            log.info("Total number of new contacts: " + newContact);
+            log.info("Total number of existed contacts: " + existedContact);
         }
     	catch (ConnectionException e) {
             log.error(e.getMessage());
@@ -224,7 +231,7 @@ public class SFOutbound {
                 String cellValue = "";
                 cell = row.getCell(colIndex);
                 if (cell == null) {
-                    log.info("row " + row.getRowNum() + " col " + colIndex + " is null");
+                    log.debug("row " + row.getRowNum() + " col " + colIndex + " is null");
                 }
                 else {
                     cellValue = getCellValue(cell);
@@ -567,7 +574,7 @@ public class SFOutbound {
 
     private static void updateContact(PartnerConnection conn, String contactId,
                                       ContactInfo ci) {
-    	log.info("Updating contact Id: " + contactId + "...");
+        log.info("Updating existing contact name: " + ci.firstName + " " + ci.lastName);
     	SObject[] records = new SObject[1];
     	try {
 			SObject so = copyContactInfo(ci);
